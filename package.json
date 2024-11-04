@@ -1,0 +1,21 @@
+{
+  "name": "urlshortener",
+  "version": "1.0.0",
+  "description": "\"URL shortener service with detailed analytics on link usage (e.g., clicks, locations, and referrers)\"",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Gintoki",
+  "license": "MIT",
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.10.0",
+    "mongoose": "^8.8.0",
+    "shortid": "^2.2.16",
+    "ua-parser-js": "^2.0.0-rc.1"
+  }
+}
