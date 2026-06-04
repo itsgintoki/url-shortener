@@ -1,13 +1,13 @@
 import express from 'express'
 import { shortenPostRequestBodySchema } from '../validations/request.validation.js';
 import { nanoid } from 'nanoid';
-import { and, eq } from 'drizzle-orm';
+import { and, eq ,desc} from 'drizzle-orm';
 import { updateUrlSchema } from '../validations/request.validation.js';
 import { db } from '../db/index.js'
-import { urlsTable } from '../models/url.model.js';
+import { urlClicksTable, urlsTable } from '../models/url.model.js';
 import { ensureAuthenticated } from '../middlewares/auth.middleware.js';
 import { usersTable } from '../models/user.model.js';
-
+import { sql } from 'drizzle-orm';
 const router = express.Router();
 
 
@@ -120,11 +120,69 @@ router.patch('/:id', ensureAuthenticated, async function (req, res) {
     return res.status(200).json(result[0]);
 });
 
+router.get('/analytics',ensureAuthenticated,async function(req,res){
+    const result = await db
+    .select({
+        shortCode:urlsTable.shortCode,
+        targetURL:urlsTable.targetURL,
+        clicks:urlsTable.clicks,
+    })
+    .from(urlsTable)
+    .where(eq(urlsTable.userId,req.user.id))
+
+    return res.json({analytics:result})
+})
+
+
+router.get('/analytics/:shortcode', ensureAuthenticated, async function (req, res) {
+    const shortcode = req.params.shortcode;
+
+    const [result] = await db
+        .select({
+            id: urlsTable.id,
+            shortCode: urlsTable.shortCode,
+            targetURL: urlsTable.targetURL,
+            clicks: urlsTable.clicks,
+        })
+        .from(urlsTable)
+        .where(
+            and(
+                eq(urlsTable.shortCode, shortcode),
+                eq(urlsTable.userId, req.user.id)
+            )
+        );
+
+    if (!result) {
+        return res.status(404).json({
+            error: 'URL not found',
+        });
+    }
+
+    const [lastClick] = await db
+        .select({
+            clickedAt: urlClicksTable.clickedAt,
+        })
+        .from(urlClicksTable)
+        .where(eq(urlClicksTable.urlId, result.id))
+        .orderBy(desc(urlClicksTable.clickedAt))
+        .limit(1);
+
+    return res.json({
+        analytics: {
+            shortCode: result.shortCode,
+            targetURL: result.targetURL,
+            totalClicks: result.clicks,
+            lastClickAt: lastClick?.clickedAt ?? null,
+        },
+    });
+});
+
 router.get('/:shortCode', async (req, res) => {
     const code = req.params.shortCode;
 
     const [result] = await db
         .select({
+            id: urlsTable.id,
             targetURL: urlsTable.targetURL,
         })
         .from(urlsTable)
@@ -135,6 +193,17 @@ router.get('/:shortCode', async (req, res) => {
             error: 'Invalid URL',
         });
     }
+
+    await db
+        .update(urlsTable)
+        .set({
+            clicks: sql`${urlsTable.clicks} + 1`
+        })
+        .where(eq(urlsTable.shortCode, code));
+
+    await db.insert(urlClicksTable).values({
+        urlId: result.id,
+    });
 
     return res.redirect(result.targetURL);
 });

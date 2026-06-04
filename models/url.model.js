@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp,integer } from 'drizzle-orm/pg-core';
 import { usersTable } from './user.model.js';
 
 export const urlsTable = pgTable('urls', {
@@ -17,4 +17,18 @@ export const urlsTable = pgTable('urls', {
         .notNull()
         .$onUpdateFn(() => new Date()),
 
+    clicks: integer("clicks").default(0).notNull(),
+
 })
+
+export const urlClicksTable = pgTable('url_clicks', {
+    id: uuid('id').primaryKey().defaultRandom(),
+
+    urlId: uuid('url_id')
+        .notNull()
+        .references(() => urlsTable.id),
+
+    clickedAt: timestamp('clicked_at')
+        .defaultNow()
+        .notNull(),
+});
