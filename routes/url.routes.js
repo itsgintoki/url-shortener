@@ -1,8 +1,8 @@
 import express from 'express'
 import { shortenPostRequestBodySchema } from '../validations/request.validation.js';
 import { nanoid } from 'nanoid';
-import { and,eq } from 'drizzle-orm';
-
+import { and, eq } from 'drizzle-orm';
+import { updateUrlSchema } from '../validations/request.validation.js';
 import { db } from '../db/index.js'
 import { urlsTable } from '../models/url.model.js';
 import { ensureAuthenticated } from '../middlewares/auth.middleware.js';
@@ -11,8 +11,8 @@ import { usersTable } from '../models/user.model.js';
 const router = express.Router();
 
 
-router.post('/shorten',ensureAuthenticated, async function (req, res) {
-    
+router.post('/shorten', ensureAuthenticated, async function (req, res) {
+
 
     const validationResult =
         await shortenPostRequestBodySchema.safeParseAsync(req.body);
@@ -47,13 +47,13 @@ router.post('/shorten',ensureAuthenticated, async function (req, res) {
     });
 });
 
-router.get('/codes',ensureAuthenticated, async function(req,res){
+router.get('/codes', ensureAuthenticated, async function (req, res) {
     const codes = await db
-    .select()
-    .from(urlsTable)
-    .where(eq(urlsTable.userId,req.user.id))
+        .select()
+        .from(urlsTable)
+        .where(eq(urlsTable.userId, req.user.id))
 
-    return res.json({codes})
+    return res.json({ codes })
 })
 
 router.delete('/:id', ensureAuthenticated, async function (req, res) {
@@ -82,13 +82,17 @@ router.delete('/:id', ensureAuthenticated, async function (req, res) {
 
 router.patch('/:id', ensureAuthenticated, async function (req, res) {
     const id = req.params.id;
-    const { targetURL } = req.body;
 
-    if (!targetURL) {
+    const validationResult =
+        await updateUrlSchema.safeParseAsync(req.body);
+
+    if (!validationResult.success) {
         return res.status(400).json({
-            error: 'targetURL is required'
+            error: validationResult.error.format()
         });
     }
+
+    const { targetURL } = validationResult.data;
 
     const result = await db
         .update(urlsTable)

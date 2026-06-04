@@ -5,14 +5,13 @@ import { signupPostRequestBodySchema, loginPostRequestBodySchema } from '../vali
 import { hashPasswordWithSalt } from '../utils/hash.js';
 import { getUserByEmail } from '../services/user.services.js';
 import { createUserToken } from '../utils/token.js';
-import { updateUrlSchema } from '../validations/request.validation.js';
-
+    
 const router = express.Router();
 
 router.post('/signup', async (req, res) => {
 
     const validationResult =
-        await updateUrlSchema.safeParseAsync(req.body);
+    await signupPostRequestBodySchema.safeParseAsync(req.body);
 
     if (!validationResult.success) {
         return res.status(400).json({
@@ -20,7 +19,6 @@ router.post('/signup', async (req, res) => {
         });
     }
 
-    const { targetURL } = validationResult.data;
 
     const { firstName, lastName, email, password } = validationResult.data;
 
