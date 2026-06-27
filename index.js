@@ -11,7 +11,9 @@ const PORT = process.env.PORT ?? 8000;
 
 app.use(express.json())
 app.use(authenticationMiddleware)
-app.use(cors()) 
+app.use(cors({
+  origin: 'https://url-shortener-gilt-seven.vercel.app'
+}))
 
 // 100 requests per 15 minutes per IP 
 app.use(rateLimit({
