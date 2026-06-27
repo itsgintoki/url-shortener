@@ -618,10 +618,12 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  const BASE = 'https://url-shortener-production-d336.up.railway.app';
+  const BASE = 'http://localhost:8000';
   let token = localStorage.getItem('snip_token') || null;
   let userEmail = localStorage.getItem('snip_email') || null;
   let editingId = null;
+  let currentPage = 1;
+  let hasMore = false;
 
   // ─── Init ───
   if (token) showApp();
@@ -769,23 +771,28 @@
   }
 
   // ─── Load URLs ───
-  async function loadCodes() {
+  async function loadCodes(page = 1) {
     const list = document.getElementById('url-list');
-    list.innerHTML = '<div class="empty-state"><p>Loading…</p></div>';
+    if (page === 1) list.innerHTML = '<div class="empty-state"><p>Loading…</p></div>';
     try {
-      const res = await fetch(`${BASE}/codes`, {
+      const res = await fetch(`${BASE}/codes?page=${page}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to load');
       const codes = data.codes || [];
-      if (codes.length === 0) {
+      currentPage = page;
+      hasMore = codes.length === data.limit;
+
+      if (page === 1) list.innerHTML = '';
+
+      if (page === 1 && codes.length === 0) {
         list.innerHTML = '<div class="empty-state"><p>No links yet. Shorten something above.</p></div>';
+        updatePagination();
         return;
       }
-      list.innerHTML = '';
+
       codes.forEach(c => {
-        const short = `${BASE}/${c.shortCode}`;
         const el = document.createElement('div');
         el.className = 'url-item';
         el.innerHTML = `
@@ -801,8 +808,36 @@
         `;
         list.appendChild(el);
       });
+      updatePagination();
     } catch (e) {
       list.innerHTML = `<div class="empty-state"><p style="color:var(--red)">${e.message}</p></div>`;
+    }
+  }
+
+  function updatePagination() {
+    let pg = document.getElementById('pagination');
+    if (!pg) {
+      pg = document.createElement('div');
+      pg.id = 'pagination';
+      pg.style.cssText = 'display:flex;gap:10px;margin-top:16px;justify-content:center;';
+      document.getElementById('url-list').after(pg);
+    }
+    pg.innerHTML = '';
+    if (currentPage > 1) {
+      const prev = document.createElement('button');
+      prev.className = 'btn-ghost';
+      prev.style.cssText = 'font-size:0.8rem;padding:6px 14px';
+      prev.textContent = '← Previous';
+      prev.onclick = () => loadCodes(currentPage - 1);
+      pg.appendChild(prev);
+    }
+    if (hasMore) {
+      const next = document.createElement('button');
+      next.className = 'btn-ghost';
+      next.style.cssText = 'font-size:0.8rem;padding:6px 14px';
+      next.textContent = 'Next →';
+      next.onclick = () => loadCodes(currentPage + 1);
+      pg.appendChild(next);
     }
   }
 
