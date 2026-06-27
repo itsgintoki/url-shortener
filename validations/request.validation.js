@@ -15,8 +15,9 @@ export const loginPostRequestBodySchema = z.object({
 })
 
 export const shortenPostRequestBodySchema = z.object({
-    url:z.string().url(),
-    code:z.string().optional()
+    url: z.string().url(),
+    code: z.string().optional(),
+    expiresAt: z.string().datetime().optional(),
 })
 
 export const updateUrlSchema = z.object({

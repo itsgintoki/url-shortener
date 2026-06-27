@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp,integer } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, integer } from 'drizzle-orm/pg-core';
 import { usersTable } from './user.model.js';
 
 export const urlsTable = pgTable('urls', {
@@ -16,8 +16,8 @@ export const urlsTable = pgTable('urls', {
         .defaultNow()
         .notNull()
         .$onUpdateFn(() => new Date()),
-
     clicks: integer("clicks").default(0).notNull(),
+    expiresAt: timestamp('expires_at', { mode: 'date' }).default(null),
 
 })
 

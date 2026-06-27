@@ -12,19 +12,13 @@ const router = express.Router();
 
 
 router.post('/shorten', ensureAuthenticated, async function (req, res) {
-
-
-    const validationResult =
-        await shortenPostRequestBodySchema.safeParseAsync(req.body);
+    const validationResult = await shortenPostRequestBodySchema.safeParseAsync(req.body);
 
     if (!validationResult.success) {
-        return res.status(400).json({
-            error: validationResult.error
-        });
+        return res.status(400).json({ error: validationResult.error });
     }
 
-    const { url, code } = validationResult.data;
-
+    const { url, code, expiresAt } = validationResult.data;
     const shortCode = code ?? nanoid(6);
 
     const [result] = await db
@@ -33,18 +27,16 @@ router.post('/shorten', ensureAuthenticated, async function (req, res) {
             shortCode,
             targetURL: url,
             userId: req.user.id,
+            expiresAt: expiresAt ? new Date(expiresAt) : null,
         })
         .returning({
             id: urlsTable.id,
             shortCode: urlsTable.shortCode,
             targetURL: urlsTable.targetURL,
+            expiresAt: urlsTable.expiresAt,
         });
 
-    return res.status(201).json({
-        id: result.id,
-        shortCode: result.shortCode,
-        targetURL: result.targetURL,
-    });
+    return res.status(201).json(result);
 });
 
 router.get('/codes', ensureAuthenticated, async function (req, res) {
@@ -184,26 +176,25 @@ router.get('/:shortCode', async (req, res) => {
         .select({
             id: urlsTable.id,
             targetURL: urlsTable.targetURL,
+            expiresAt: urlsTable.expiresAt,
         })
         .from(urlsTable)
         .where(eq(urlsTable.shortCode, code));
 
     if (!result) {
-        return res.status(404).json({
-            error: 'Invalid URL',
-        });
+        return res.status(404).json({ error: 'Invalid URL' });
+    }
+
+    if (result.expiresAt && new Date() > result.expiresAt) {
+        return res.status(410).json({ error: 'This link has expired' });
     }
 
     await db
         .update(urlsTable)
-        .set({
-            clicks: sql`${urlsTable.clicks} + 1`
-        })
+        .set({ clicks: sql`${urlsTable.clicks} + 1` })
         .where(eq(urlsTable.shortCode, code));
 
-    await db.insert(urlClicksTable).values({
-        urlId: result.id,
-    });
+    await db.insert(urlClicksTable).values({ urlId: result.id });
 
     return res.redirect(result.targetURL);
 });
