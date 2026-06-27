@@ -1,6 +1,6 @@
 # URL Shortener
 
-A RESTful URL Shortener API built with Node.js, Express, PostgreSQL, Drizzle ORM, JWT Authentication, and Zod validation.
+A full-stack URL Shortener built with Node.js, Express, PostgreSQL, Drizzle ORM, JWT Authentication, and Zod validation. Includes a vanilla HTML/CSS/JS frontend.
 
 ## Features
 
@@ -12,6 +12,9 @@ A RESTful URL Shortener API built with Node.js, Express, PostgreSQL, Drizzle ORM
 - List User URLs
 - Update Existing URLs
 - Delete URLs
+- Click Tracking & Analytics
+- URL Expiration
+- Rate Limiting
 - PostgreSQL Database
 - Drizzle ORM
 - Zod Validation
@@ -27,6 +30,7 @@ A RESTful URL Shortener API built with Node.js, Express, PostgreSQL, Drizzle ORM
 - JWT
 - Zod
 - NanoID
+- express-rate-limit
 - PNPM
 
 ---
@@ -52,9 +56,7 @@ Create a `.env` file:
 
 ```env
 DATABASE_URL=postgresql://postgres:password@localhost:5432/postgres
-
 JWT_SECRET=your-secret-key
-
 PORT=8000
 ```
 
@@ -82,11 +84,13 @@ pnpm db:studio
 pnpm dev
 ```
 
-Server:
+Server runs at:
 
-```text
+```
 http://localhost:8000
 ```
+
+Open `index.html` in your browser to use the frontend.
 
 ---
 
@@ -164,7 +168,7 @@ Authorization: Bearer <jwt_token>
 POST /shorten
 ```
 
-Request:
+Basic request:
 
 ```json
 {
@@ -172,12 +176,13 @@ Request:
 }
 ```
 
-Custom code:
+With custom code and expiry:
 
 ```json
 {
   "url": "https://google.com",
-  "code": "google"
+  "code": "google",
+  "expiresAt": "2025-12-31T23:59:59.000Z"
 }
 ```
 
@@ -187,7 +192,8 @@ Response:
 {
   "id": "uuid",
   "shortCode": "google",
-  "targetURL": "https://google.com"
+  "targetURL": "https://google.com",
+  "expiresAt": "2025-12-31T23:59:59.000Z"
 }
 ```
 
@@ -207,7 +213,9 @@ Response:
     {
       "id": "uuid",
       "shortCode": "abc123",
-      "targetURL": "https://example.com"
+      "targetURL": "https://example.com",
+      "clicks": 42,
+      "expiresAt": null
     }
   ]
 }
@@ -257,45 +265,73 @@ Response:
 
 ---
 
+## Analytics
+
+### All links
+
+```http
+GET /analytics
+```
+
+Response:
+
+```json
+{
+  "analytics": [
+    {
+      "shortCode": "abc123",
+      "targetURL": "https://example.com",
+      "clicks": 42
+    }
+  ]
+}
+```
+
+### Single link
+
+```http
+GET /analytics/:shortCode
+```
+
+Response:
+
+```json
+{
+  "analytics": {
+    "shortCode": "abc123",
+    "targetURL": "https://example.com",
+    "totalClicks": 42,
+    "lastClickAt": "2025-06-01T10:30:00.000Z"
+  }
+}
+```
+
+---
+
 ## Redirect
 
 ```http
 GET /:shortCode
 ```
 
-Example:
+Redirects to the original URL. Returns `410 Gone` if the link has expired.
 
-```http
-GET /google
-```
+---
 
-Redirects to:
+## Rate Limiting
 
-```text
-https://google.com
-```
+- General: 100 requests per 15 minutes per IP
+- `/shorten`: 10 requests per 15 minutes per IP
 
 ---
 
 ## Available Scripts
 
 ```bash
-pnpm dev
+pnpm dev        # Start development server
+pnpm db:push    # Push schema changes to PostgreSQL
+pnpm db:studio  # Open Drizzle Studio
 ```
-
-Start development server.
-
-```bash
-pnpm db:push
-```
-
-Push schema changes to PostgreSQL.
-
-```bash
-pnpm db:studio
-```
-
-Open Drizzle Studio.
 
 ---
 
@@ -306,18 +342,7 @@ Open Drizzle Studio.
 - Zod request validation
 - User-owned URL management
 - Protected CRUD operations
+- Rate limiting on all routes
 
 ---
 
-## Future Improvements
-
-- Analytics Dashboard
-- Click Tracking
-- URL Expiration
-- QR Code Generation
-- Rate Limiting
-- Swagger/OpenAPI Docs
-- Docker Support
-- Custom Domains
-
----
