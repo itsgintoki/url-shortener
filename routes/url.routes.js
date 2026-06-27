@@ -1,7 +1,7 @@
 import express from 'express'
 import { shortenPostRequestBodySchema } from '../validations/request.validation.js';
 import { nanoid } from 'nanoid';
-import { and, eq ,desc} from 'drizzle-orm';
+import { and, eq, desc } from 'drizzle-orm';
 import { updateUrlSchema } from '../validations/request.validation.js';
 import { db } from '../db/index.js'
 import { urlClicksTable, urlsTable } from '../models/url.model.js';
@@ -40,13 +40,26 @@ router.post('/shorten', ensureAuthenticated, async function (req, res) {
 });
 
 router.get('/codes', ensureAuthenticated, async function (req, res) {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 20;
+    const offset = (page - 1) * limit;
+
     const codes = await db
-        .select()
+        .select({
+            id: urlsTable.id,
+            shortCode: urlsTable.shortCode,
+            targetURL: urlsTable.targetURL,
+            clicks: urlsTable.clicks,
+            expiresAt: urlsTable.expiresAt,
+        })
         .from(urlsTable)
         .where(eq(urlsTable.userId, req.user.id))
+        .limit(limit)
+        .offset(offset)
+        .orderBy(desc(urlsTable.createdAt));
 
-    return res.json({ codes })
-})
+    return res.json({ codes, page, limit });
+});
 
 router.delete('/:id', ensureAuthenticated, async function (req, res) {
     const id = req.params.id;
@@ -112,17 +125,18 @@ router.patch('/:id', ensureAuthenticated, async function (req, res) {
     return res.status(200).json(result[0]);
 });
 
-router.get('/analytics',ensureAuthenticated,async function(req,res){
+router.get('/analytics', ensureAuthenticated, async function(req, res) {
     const result = await db
-    .select({
-        shortCode:urlsTable.shortCode,
-        targetURL:urlsTable.targetURL,
-        clicks:urlsTable.clicks,
-    })
-    .from(urlsTable)
-    .where(eq(urlsTable.userId,req.user.id))
+        .select({
+            shortCode: urlsTable.shortCode,
+            targetURL: urlsTable.targetURL,
+            clicks: urlsTable.clicks,
+            expiresAt: urlsTable.expiresAt,
+        })
+        .from(urlsTable)
+        .where(eq(urlsTable.userId, req.user.id))
 
-    return res.json({analytics:result})
+    return res.json({ analytics: result })
 })
 
 
