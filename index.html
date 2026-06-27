@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snip — URL Shortener</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --bg: #0c0c0f;
+    --surface: #16161c;
+    --border: #2a2a35;
+    --accent: #7c6af7;
+    --accent-dim: #7c6af720;
+    --accent-glow: #7c6af740;
+    --green: #4ade80;
+    --red: #f87171;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Space Grotesk', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ─── Nav ─── */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 40px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+  }
+  .logo span { color: var(--text); }
+  .nav-actions { display: flex; gap: 10px; align-items: center; }
+  .btn-ghost {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--text); }
+  .btn-primary {
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    color: #fff;
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-danger {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-danger:hover { border-color: var(--red); color: var(--red); }
+
+  /* ─── Views ─── */
+  .view { display: none; flex: 1; }
+  .view.active { display: flex; }
+
+  /* ─── Auth View ─── */
+  #auth-view {
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+  }
+  .auth-card {
+    width: 100%;
+    max-width: 420px;
+  }
+  .auth-hero {
+    margin-bottom: 40px;
+    text-align: center;
+  }
+  .auth-hero h1 {
+    font-size: 2.4rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+  .auth-hero h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+  .auth-hero p {
+    color: var(--muted);
+    margin-top: 10px;
+    font-size: 0.95rem;
+  }
+  .auth-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .tab {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.15s;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .field {
+    margin-bottom: 16px;
+  }
+  label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  input[type="text"], input[type="email"], input[type="password"], input[type="url"] {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 11px 14px;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus { border-color: var(--accent); }
+  input[type="datetime-local"] {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 11px 14px;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.15s;
+    color-scheme: dark;
+  }
+  input[type="datetime-local"]:focus { border-color: var(--accent); }
+  .expiry-badge {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .expiry-badge.expired { color: var(--red); }
+  .expiry-badge.expiring-soon { color: #fbbf24; }
+  .expiry-badge.active { color: var(--green); }
+  .field-row { display: flex; gap: 12px; }
+  .field-row .field { flex: 1; }
+  .auth-submit {
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    margin-top: 8px;
+  }
+  .error-msg {
+    background: #f8717120;
+    border: 1px solid #f8717140;
+    color: var(--red);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  /* ─── App View ─── */
+  #app-view {
+    flex-direction: column;
+  }
+  .app-body {
+    flex: 1;
+    max-width: 760px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 48px 24px;
+  }
+  .shorten-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    margin-bottom: 40px;
+  }
+  .shorten-box h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: var(--text);
+  }
+  .shorten-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  .shorten-row .field { flex: 1; margin-bottom: 0; }
+  .shorten-row .btn-primary { white-space: nowrap; padding: 11px 22px; font-size: 0.95rem; }
+  .optional-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 14px;
+  }
+  .optional-row .field { flex: 1; margin-bottom: 0; }
+
+  /* Result */
+  .result-card {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-glow);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-top: 18px;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .result-card.show { display: flex; }
+  .result-url {
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    color: var(--accent);
+    word-break: break-all;
+  }
+  .copy-btn {
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    padding: 7px 16px;
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+  }
+  .copy-btn:hover { opacity: 0.8; }
+
+  /* URL List */
+  .list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+  }
+  .list-header h2 { font-size: 1rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .url-list { display: flex; flex-direction: column; gap: 10px; }
+  .url-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: border-color 0.15s;
+  }
+  .url-item:hover { border-color: #3a3a48; }
+  .url-code {
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 100px;
+    white-space: nowrap;
+  }
+  .url-target {
+    flex: 1;
+    color: var(--muted);
+    font-size: 0.875rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .url-actions { display: flex; gap: 8px; }
+  .btn-edit {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-edit:hover { border-color: var(--accent); color: var(--accent); }
+  .empty-state {
+    text-align: center;
+    padding: 48px 0;
+    color: var(--muted);
+  }
+  .empty-state p { font-size: 0.95rem; }
+
+  /* Click badge */
+  .click-badge {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--muted);
+    background: #ffffff08;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 10px;
+    white-space: nowrap;
+  }
+  .click-badge.has-clicks { color: var(--green); border-color: #4ade8030; background: #4ade8010; }
+
+  /* Analytics drawer */
+  .drawer-overlay {
+    position: fixed; inset: 0;
+    background: #0008;
+    z-index: 100;
+    display: none;
+  }
+  .drawer-overlay.show { display: block; }
+  .drawer {
+    position: fixed;
+    right: 0; top: 0; bottom: 0;
+    width: 340px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    z-index: 101;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.22s cubic-bezier(.4,0,.2,1);
+    padding: 28px 24px;
+    gap: 24px;
+  }
+  .drawer.show { transform: translateX(0); }
+  .drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .drawer-header h3 { font-size: 1rem; font-weight: 600; }
+  .close-btn {
+    background: none; border: none;
+    color: var(--muted); font-size: 1.3rem;
+    cursor: pointer; padding: 2px 6px;
+    border-radius: 4px;
+    transition: color 0.15s;
+  }
+  .close-btn:hover { color: var(--text); }
+  .stat-block {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .stat-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--green);
+    line-height: 1;
+  }
+  .stat-value.small { font-size: 0.9rem; color: var(--text); word-break: break-all; }
+  .drawer-code {
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    color: var(--accent);
+    margin-bottom: 2px;
+  }
+  .drawer-loading { color: var(--muted); font-size: 0.9rem; text-align: center; padding: 40px 0; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: #0009;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+    padding: 20px;
+    display: none;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    width: 100%;
+    max-width: 420px;
+  }
+  .modal h3 { font-size: 1.1rem; margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 12px 18px;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    z-index: 200;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.2s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.success { border-color: #4ade8060; color: var(--green); }
+  .toast.error { border-color: #f8717160; color: var(--red); }
+
+  /* Spinner */
+  .spin {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid #ffffff40;
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-left: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .user-email {
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  @media (max-width: 600px) {
+    nav { padding: 16px 20px; }
+    .shorten-row { flex-direction: column; }
+    .optional-row { flex-direction: column; }
+    .url-item { flex-wrap: wrap; }
+    .field-row { flex-direction: column; gap: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="logo">snip<span>.</span></div>
+  <div class="nav-actions" id="nav-actions">
+    <button class="btn-ghost" onclick="showTab('login')">Log in</button>
+    <button class="btn-primary" onclick="showTab('signup')">Sign up</button>
+  </div>
+</nav>
+
+<!-- Auth View -->
+<div class="view active" id="auth-view">
+  <div class="auth-card">
+    <div class="auth-hero">
+      <h1>Short links,<br><em>instantly.</em></h1>
+      <p>Create and manage shortened URLs with your free account.</p>
+    </div>
+
+    <div class="auth-tabs">
+      <div class="tab active" id="tab-login" onclick="showTab('login')">Log in</div>
+      <div class="tab" id="tab-signup" onclick="showTab('signup')">Sign up</div>
+    </div>
+
+    <div id="auth-error" class="error-msg"></div>
+
+    <!-- Login Form -->
+    <div id="form-login">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="you@example.com" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" />
+      </div>
+      <button class="btn-primary auth-submit" id="login-btn" onclick="doLogin()">Log in</button>
+    </div>
+
+    <!-- Signup Form -->
+    <div id="form-signup" style="display:none">
+      <div class="field-row">
+        <div class="field">
+          <label>First name</label>
+          <input type="text" id="signup-fname" placeholder="Gintoki" />
+        </div>
+        <div class="field">
+          <label>Last name</label>
+          <input type="text" id="signup-lname" placeholder="Sakata" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="signup-email" placeholder="you@example.com" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="signup-password" placeholder="Min. 8 characters" />
+      </div>
+      <button class="btn-primary auth-submit" id="signup-btn" onclick="doSignup()">Create account</button>
+    </div>
+  </div>
+</div>
+
+<!-- App View -->
+<div class="view" id="app-view">
+  <div class="app-body">
+
+    <!-- Shorten Box -->
+    <div class="shorten-box">
+      <h2>Shorten a URL</h2>
+      <div class="shorten-row">
+        <div class="field">
+          <input type="url" id="long-url" placeholder="https://your-very-long-url.com/goes/here" />
+        </div>
+        <button class="btn-primary" id="shorten-btn" onclick="doShorten()">Shorten</button>
+      </div>
+      <div class="optional-row">
+        <div class="field">
+          <label>Custom code (optional)</label>
+          <input type="text" id="custom-code" placeholder="e.g. my-link" />
+        </div>
+        <div class="field">
+          <label>Expires on (optional)</label>
+          <input type="datetime-local" id="expires-at" />
+        </div>
+      </div>
+      <div class="result-card" id="result-card">
+        <span class="result-url" id="result-url"></span>
+        <button class="copy-btn" onclick="copyResult()">Copy</button>
+      </div>
+    </div>
+
+    <!-- URL List -->
+    <div class="list-header">
+      <h2>Your links</h2>
+      <button class="btn-ghost" style="font-size:0.8rem;padding:6px 14px" onclick="loadCodes()">Refresh</button>
+    </div>
+    <div class="url-list" id="url-list">
+      <div class="empty-state"><p>No links yet. Shorten something above.</p></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <h3>Update destination</h3>
+    <div class="field">
+      <label>New URL</label>
+      <input type="url" id="edit-url" placeholder="https://new-destination.com" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" id="edit-save-btn" onclick="saveEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Analytics Drawer -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="analytics-drawer">
+  <div class="drawer-header">
+    <h3>Link analytics</h3>
+    <button class="close-btn" onclick="closeDrawer()">&#x2715;</button>
+  </div>
+  <div id="drawer-content">
+    <div class="drawer-loading">Loading&#x2026;</div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  const BASE = 'http://localhost:8000';
+  let token = localStorage.getItem('snip_token') || null;
+  let userEmail = localStorage.getItem('snip_email') || null;
+  let editingId = null;
+
+  // ─── Init ───
+  if (token) showApp();
+
+  // ─── Auth UI ───
+  function showTab(tab) {
+    document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+    document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+    document.getElementById('form-login').style.display = tab === 'login' ? 'block' : 'none';
+    document.getElementById('form-signup').style.display = tab === 'signup' ? 'block' : 'none';
+    clearAuthError();
+  }
+
+  function clearAuthError() {
+    const el = document.getElementById('auth-error');
+    el.style.display = 'none'; el.textContent = '';
+  }
+
+  function showAuthError(msg) {
+    const el = document.getElementById('auth-error');
+    el.textContent = msg; el.style.display = 'block';
+  }
+
+  // ─── Login ───
+  async function doLogin() {
+    clearAuthError();
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    if (!email || !password) return showAuthError('Enter your email and password.');
+    const btn = document.getElementById('login-btn');
+    btn.innerHTML = 'Logging in <span class="spin"></span>';
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${BASE}/user/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (res.status === 429) throw new Error('Too many login attempts — wait a few minutes.');
+      if (!res.ok) throw new Error(data.message || data.error || 'Login failed');
+      token = data.token;
+      localStorage.setItem('snip_token', token);
+      localStorage.setItem('snip_email', email);
+      userEmail = email;
+      showApp();
+    } catch (e) {
+      showAuthError(e.message);
+    } finally {
+      btn.textContent = 'Log in'; btn.disabled = false;
+    }
+  }
+
+  // ─── Signup ───
+  async function doSignup() {
+    clearAuthError();
+    const firstName = document.getElementById('signup-fname').value.trim();
+    const lastName = document.getElementById('signup-lname').value.trim();
+    const email = document.getElementById('signup-email').value.trim();
+    const password = document.getElementById('signup-password').value;
+    if (!firstName || !email || !password) return showAuthError('Fill in all required fields.');
+    const btn = document.getElementById('signup-btn');
+    btn.innerHTML = 'Creating account <span class="spin"></span>';
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${BASE}/user/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firstName, lastName, email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Signup failed');
+      showTab('login');
+      document.getElementById('login-email').value = email;
+      toast('Account created — log in now', 'success');
+    } catch (e) {
+      showAuthError(e.message);
+    } finally {
+      btn.textContent = 'Create account'; btn.disabled = false;
+    }
+  }
+
+  // ─── App ───
+  function showApp() {
+    document.getElementById('auth-view').classList.remove('active');
+    document.getElementById('app-view').classList.add('active');
+    document.getElementById('nav-actions').innerHTML = `
+      <span class="user-email">${userEmail || ''}</span>
+      <button class="btn-ghost" onclick="logout()">Log out</button>
+    `;
+    loadCodes();
+  }
+
+  function logout() {
+    token = null; userEmail = null;
+    localStorage.removeItem('snip_token');
+    localStorage.removeItem('snip_email');
+    document.getElementById('app-view').classList.remove('active');
+    document.getElementById('auth-view').classList.add('active');
+    document.getElementById('nav-actions').innerHTML = `
+      <button class="btn-ghost" onclick="showTab('login')">Log in</button>
+      <button class="btn-primary" onclick="showTab('signup')">Sign up</button>
+    `;
+    document.getElementById('result-card').classList.remove('show');
+  }
+
+  // ─── Shorten ───
+  async function doShorten() {
+    const url = document.getElementById('long-url').value.trim();
+    const code = document.getElementById('custom-code').value.trim();
+    if (!url) return toast('Paste a URL first', 'error');
+    const btn = document.getElementById('shorten-btn');
+    btn.innerHTML = 'Shortening <span class="spin"></span>';
+    btn.disabled = true;
+    try {
+      const body = { url };
+      if (code) body.code = code;
+      const expiresAtVal = document.getElementById('expires-at').value;
+      if (expiresAtVal) body.expiresAt = new Date(expiresAtVal).toISOString();
+      const res = await fetch(`${BASE}/shorten`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (res.status === 429) throw new Error('Too many links created — wait a few minutes.');
+      if (!res.ok) throw new Error(data.message || data.error || 'Failed to shorten');
+      const short = `${BASE}/${data.shortCode}`;
+      document.getElementById('result-url').textContent = short;
+      document.getElementById('result-card').classList.add('show');
+      document.getElementById('long-url').value = '';
+      document.getElementById('custom-code').value = '';
+      document.getElementById('expires-at').value = '';
+      loadCodes();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      btn.textContent = 'Shorten'; btn.disabled = false;
+    }
+  }
+
+  function copyResult() {
+    const url = document.getElementById('result-url').textContent;
+    navigator.clipboard.writeText(url).then(() => toast('Copied!', 'success'));
+  }
+
+  // ─── Load URLs ───
+  async function loadCodes() {
+    const list = document.getElementById('url-list');
+    list.innerHTML = '<div class="empty-state"><p>Loading…</p></div>';
+    try {
+      const res = await fetch(`${BASE}/codes`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to load');
+      const codes = data.codes || [];
+      if (codes.length === 0) {
+        list.innerHTML = '<div class="empty-state"><p>No links yet. Shorten something above.</p></div>';
+        return;
+      }
+      list.innerHTML = '';
+      codes.forEach(c => {
+        const short = `${BASE}/${c.shortCode}`;
+        const el = document.createElement('div');
+        el.className = 'url-item';
+        el.innerHTML = `
+          <span class="url-code">/${c.shortCode}</span>
+          <span class="url-target" title="${c.targetURL}">${c.targetURL}</span>
+          <span class="click-badge ${(c.clicks||0)>0?'has-clicks':''}">${c.clicks||0} clicks</span>
+          ${expiryBadge(c.expiresAt)}
+          <div class="url-actions">
+            <button class="btn-edit" onclick="openAnalytics('${c.shortCode}')">Stats</button>
+            <button class="btn-edit" onclick="openEdit('${c.id}','${escHtml(c.targetURL)}')">Edit</button>
+            <button class="btn-danger" onclick="deleteCode('${c.id}', this)">Delete</button>
+          </div>
+        `;
+        list.appendChild(el);
+      });
+    } catch (e) {
+      list.innerHTML = `<div class="empty-state"><p style="color:var(--red)">${e.message}</p></div>`;
+    }
+  }
+
+  // ─── Edit ───
+  function openEdit(id, currentUrl) {
+    editingId = id;
+    document.getElementById('edit-url').value = currentUrl;
+    document.getElementById('edit-modal').classList.add('show');
+  }
+
+  function closeModal() {
+    document.getElementById('edit-modal').classList.remove('show');
+    editingId = null;
+  }
+
+  async function saveEdit() {
+    const targetURL = document.getElementById('edit-url').value.trim();
+    if (!targetURL) return toast('Enter a URL', 'error');
+    const btn = document.getElementById('edit-save-btn');
+    btn.innerHTML = 'Saving <span class="spin"></span>';
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${BASE}/${editingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ targetURL })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Update failed');
+      closeModal();
+      toast('Link updated', 'success');
+      loadCodes();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      btn.textContent = 'Save'; btn.disabled = false;
+    }
+  }
+
+  // ─── Delete ───
+  async function deleteCode(id, btn) {
+    if (!confirm('Delete this link? This cannot be undone.')) return;
+    btn.textContent = '…'; btn.disabled = true;
+    try {
+      const res = await fetch(`${BASE}/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Delete failed');
+      toast('Link deleted', 'success');
+      loadCodes();
+    } catch (e) {
+      toast(e.message, 'error');
+      btn.textContent = 'Delete'; btn.disabled = false;
+    }
+  }
+
+  // ─── Expiry helpers ───
+  function expiryBadge(expiresAt) {
+    if (!expiresAt) return '';
+    const exp = new Date(expiresAt);
+    const now = new Date();
+    const diff = exp - now;
+    if (diff < 0) return '<span class="expiry-badge expired">Expired</span>';
+    if (diff < 1000 * 60 * 60 * 24) return '<span class="expiry-badge expiring-soon">Expires today</span>';
+    return '<span class="expiry-badge active">Expires ' + exp.toLocaleDateString() + '</span>';
+  }
+
+  // ─── Analytics ───
+  async function openAnalytics(shortCode) {
+    document.getElementById('drawer-overlay').classList.add('show');
+    document.getElementById('analytics-drawer').classList.add('show');
+    document.getElementById('drawer-content').innerHTML = '<div class="drawer-loading">Loading&#x2026;</div>';
+    try {
+      const res = await fetch(`${BASE}/analytics/${shortCode}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to load analytics');
+      const a = data.analytics;
+      const lastClick = a.lastClickAt
+        ? new Date(a.lastClickAt).toLocaleString()
+        : 'Never';
+      document.getElementById('drawer-content').innerHTML = `
+        <div class="stat-block">
+          <div class="stat-label">Short code</div>
+          <div class="drawer-code">/${a.shortCode}</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-label">Total clicks</div>
+          <div class="stat-value">${a.totalClicks || 0}</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-label">Last clicked</div>
+          <div class="stat-value small">${lastClick}</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-label">Destination</div>
+          <div class="stat-value small">${a.targetURL}</div>
+        </div>
+        ${a.expiresAt ? `<div class="stat-block">
+          <div class="stat-label">Expires</div>
+          <div class="stat-value small ${new Date(a.expiresAt) < new Date() ? 'expired' : ''}">${new Date(a.expiresAt).toLocaleString()}</div>
+        </div>` : ''}
+      `;
+    } catch (e) {
+      document.getElementById('drawer-content').innerHTML = `<div class="drawer-loading" style="color:var(--red)">${e.message}</div>`;
+    }
+  }
+
+  function closeDrawer() {
+    document.getElementById('drawer-overlay').classList.remove('show');
+    document.getElementById('analytics-drawer').classList.remove('show');
+  }
+
+  // ─── Toast ───
+  let toastTimer;
+  function toast(msg, type = '') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `toast ${type} show`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.className = 'toast', 2800);
+  }
+
+  // ─── Utils ───
+  function escHtml(s) { return s.replace(/'/g, "\\'"); }
+
+  // Enter key shortcuts
+  document.getElementById('login-password').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+  document.getElementById('login-email').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+</script>
+</body>
+</html>

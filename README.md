@@ -94,6 +94,39 @@ Open `index.html` in your browser to use the frontend.
 
 ---
 
+## File Structure
+
+```
+url-shortener/
+├── db/
+│   └── index.js               # Drizzle DB connection
+├── drizzle/                   # Auto-generated migration files
+├── middlewares/
+│   └── auth.middleware.js     # JWT auth middleware
+├── models/
+│   ├── index.js
+│   ├── url.model.js           # URLs & clicks table schema
+│   └── user.model.js          # Users table schema
+├── routes/
+│   ├── url.routes.js          # URL endpoints
+│   └── user.routes.js         # Auth endpoints
+├── services/
+│   └── user.services.js
+├── utils/
+│   ├── hash.js                # Password hashing
+│   └── token.js               # JWT helpers
+├── validations/
+│   ├── request.validation.js  # Zod schemas
+│   └── token.validations.js
+├── index.html                 # Frontend
+├── index.js                   # Express app entry point
+├── drizzle.config.js
+├── package.json
+└── .env
+```
+
+---
+
 # API Endpoints
 
 ## Authentication
