@@ -1,381 +1,354 @@
 # URL Shortener
 
-A full-stack URL Shortener built with Node.js, Express, PostgreSQL, Drizzle ORM, JWT Authentication, and Zod validation. Includes a vanilla HTML/CSS/JS frontend.
-
-## Features
-
-- User Signup & Login
-- JWT-based Authentication
-- Create Short URLs
-- Custom Short Codes Support
-- Redirect to Original URL
-- List User URLs
-- Update Existing URLs
-- Delete URLs
-- Click Tracking & Analytics
-- URL Expiration
-- Rate Limiting
-- PostgreSQL Database
-- Drizzle ORM
-- Zod Validation
+A high-performance, full-stack URL Shortener REST API built with Node.js (ES Modules), Express, PostgreSQL, Drizzle ORM, JWT Authentication, and Zod validation. Includes a responsive dark-themed dashboard frontend.
 
 ---
 
-## Tech Stack
+## 🚀 Features
 
-- Node.js
-- Express.js
-- PostgreSQL
-- Drizzle ORM
-- JWT
-- Zod
-- NanoID
-- express-rate-limit
-- PNPM
+- **User Authentication**: Secure signup and login with salted password hashing and signed JWT tokens (7-day expiry).
+- **URL Shortening**: Generate automated NanoID short links or provide custom codes.
+- **Reserved Slug Protection**: Blocks system route collisions (`codes`, `analytics`, `shorten`, `user`, etc.).
+- **URL Expiration**: Automatic expiration handling returning `410 Gone` on expired links.
+- **Fast Non-Blocking Redirections**: Immediate HTTP 302 redirects with asynchronous, concurrent click logging.
+- **Analytics & Tracking**: Real-time click counter, detailed click timestamps, and user analytics overview.
+- **User Dashboard & URL Management**: Paginated link listing, update destination URLs, and delete links.
+- **Input & Parameter Validation**: Robust Zod schemas validating request bodies and UUID URL parameters.
+- **Rate Limiting**: Built-in IP rate limiters to protect endpoints against brute-force and abuse.
+- **Database & ORM**: PostgreSQL database managed with Drizzle ORM with schema migrations and Drizzle Studio support.
 
 ---
 
-## Installation
+## 🛠️ Tech Stack
 
-### Clone Repository
+- **Runtime & Framework**: Node.js, Express.js (ES Modules)
+- **Database & ORM**: PostgreSQL, Drizzle ORM, `pg` driver
+- **Authentication & Security**: JSON Web Tokens (`jsonwebtoken`), Node.js `crypto` (Salted HMAC-SHA256)
+- **Validation**: Zod
+- **Utilities**: NanoID, CORS, `express-rate-limit`, `dotenv`
+- **Containerization**: Docker Compose
 
+---
+
+## 📦 Installation & Setup
+
+### 1. Clone Repository
 ```bash
 git clone https://github.com/itsgintoki/url-shortener.git
 cd url-shortener
 ```
 
-### Install Dependencies
-
+### 2. Install Dependencies
 ```bash
 pnpm install
+# or npm install
 ```
 
-### Environment Variables
-
-Create a `.env` file:
+### 3. Environment Variables
+Create a `.env` file in the root directory:
 
 ```env
-DATABASE_URL=postgresql://postgres:password@localhost:5432/postgres
-JWT_SECRET=your-secret-key
 PORT=8000
+DATABASE_URL=postgresql://postgres:admin@localhost:5432/postgres
+JWT_SECRET=your-secure-jwt-secret-key
 ```
 
----
+### 4. Database Setup
 
-## Database Setup
+#### Option A: Using Docker Compose (Recommended)
+Start the PostgreSQL container:
+```bash
+docker compose up -d
+```
 
-Push schema:
+#### Option B: Local PostgreSQL
+Ensure PostgreSQL is running and matches the `DATABASE_URL` in your `.env` file.
 
+#### Push Schema to Database:
 ```bash
 pnpm db:push
 ```
 
-Open Drizzle Studio:
-
+#### Optional: Open Drizzle Studio UI:
 ```bash
 pnpm db:studio
 ```
 
 ---
 
-## Running the Project
+## 🏃 Running the Application
 
+### Development Mode (with auto-reload):
 ```bash
 pnpm dev
 ```
 
-Server runs at:
-
+The API server runs at:
 ```
 http://localhost:8000
 ```
 
-Open `index.html` in your browser to use the frontend.
+Open `index.html` in your browser to interact with the frontend UI.
 
 ---
 
-## File Structure
+## 📂 Project Structure
 
 ```
 url-shortener/
 ├── db/
-│   └── index.js               # Drizzle DB connection
-├── drizzle/                   # Auto-generated migration files
+│   └── index.js               # Drizzle database client initialization
+├── drizzle/                   # Drizzle migration artifacts
 ├── middlewares/
-│   └── auth.middleware.js     # JWT auth middleware
+│   └── auth.middleware.js     # Global JWT parser & ensureAuthenticated guard
 ├── models/
-│   ├── index.js
-│   ├── url.model.js           # URLs & clicks table schema
-│   └── user.model.js          # Users table schema
+│   ├── index.js               # Model exports
+│   ├── url.model.js           # 'urls' and 'url_clicks' table schemas
+│   └── user.model.js          # 'users' table schema
 ├── routes/
-│   ├── url.routes.js          # URL endpoints
-│   └── user.routes.js         # Auth endpoints
+│   ├── url.routes.js          # URL shortening, redirection, and analytics routes
+│   └── user.routes.js         # Authentication routes (/user/signup, /user/login)
 ├── services/
-│   └── user.services.js
+│   └── user.services.js       # User database query services
 ├── utils/
-│   ├── hash.js                # Password hashing
-│   └── token.js               # JWT helpers
+│   ├── hash.js                # Password hashing with crypto.createHmac
+│   └── token.js               # JWT creation & verification utilities
 ├── validations/
-│   ├── request.validation.js  # Zod schemas
-│   └── token.validations.js
-├── index.html                 # Frontend
-├── index.js                   # Express app entry point
-├── drizzle.config.js
-├── package.json
-└── .env
+│   ├── request.validation.js  # Request body & UUID parameter Zod schemas
+│   └── token.validations.js   # JWT payload validation schema
+├── docker-compose.yml         # PostgreSQL container definition
+├── drizzle.config.js          # Drizzle Kit configuration
+├── index.html                 # Frontend dashboard interface
+├── index.js                   # Application entry point & middleware pipeline
+└── package.json
 ```
 
 ---
 
-# API Endpoints
+## 📖 API Reference
 
-## Authentication
+### 🔐 Authentication Endpoints
 
-### Signup
-
+#### 1. User Signup
 ```http
 POST /user/signup
 ```
-
-Request:
-
+* **Request Body:**
 ```json
 {
-  "firstName": "Gintoki",
-  "lastName": "Sakata",
-  "email": "ginsaka@example.com",
-  "password": "password123"
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john@example.com",
+  "password": "strongPassword123"
 }
 ```
-
-Response:
-
+* **Response (`201 Created`):**
 ```json
 {
   "data": {
-    "userId": "uuid"
+    "userId": "3c90c3cc-0d44-4b50-8888-8dd25736052a"
   }
 }
 ```
+* **Errors**: `400 Bad Request` (validation failure or email already in use).
 
 ---
 
-### Login
-
+#### 2. User Login
 ```http
 POST /user/login
 ```
-
-Request:
-
+* **Request Body:**
 ```json
 {
-  "email": "gin@example.com",
-  "password": "password123"
+  "email": "john@example.com",
+  "password": "strongPassword123"
 }
 ```
-
-Response:
-
+* **Response (`200 OK`):**
 ```json
 {
-  "token": "jwt_token"
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
 ```
+* **Errors**: `401 Unauthorized` (`"Invalid email or password"`).
 
 ---
 
-## Authentication Header
+### 🔗 URL Endpoints (Protected)
 
-Protected routes require:
+> **Authentication Header:** All protected endpoints require a valid JWT Bearer token:
+> ```http
+> Authorization: Bearer <your_jwt_token>
+> ```
 
-```http
-Authorization: Bearer <jwt_token>
-```
-
----
-
-## Create Short URL
-
+#### 3. Create Short URL
 ```http
 POST /shorten
 ```
-
-Basic request:
-
+* **Request Body (Basic):**
 ```json
 {
-  "url": "https://google.com"
+  "url": "https://github.com"
 }
 ```
-
-With custom code and expiry:
-
+* **Request Body (Custom Code & Expiration):**
 ```json
 {
-  "url": "https://google.com",
-  "code": "google",
-  "expiresAt": "2025-12-31T23:59:59.000Z"
+  "url": "https://github.com",
+  "code": "my-github",
+  "expiresAt": "2026-12-31T23:59:59.000Z"
 }
 ```
-
-Response:
-
+* **Custom Code Rules**: 3–30 characters, alphanumeric with hyphens/underscores. Cannot be a reserved keyword (`codes`, `analytics`, `shorten`, `user`, `login`, `signup`, `api`, `health`, `favicon.ico`).
+* **Response (`201 Created`):**
 ```json
 {
-  "id": "uuid",
-  "shortCode": "google",
-  "targetURL": "https://google.com",
-  "expiresAt": "2025-12-31T23:59:59.000Z"
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "shortCode": "my-github",
+  "targetURL": "https://github.com",
+  "expiresAt": "2026-12-31T23:59:59.000Z"
 }
 ```
+* **Errors**:
+  * `400 Bad Request` (invalid URL format or reserved custom code)
+  * `409 Conflict` (`"This custom short code is already in use."`)
 
 ---
 
-## Get User URLs
-
+#### 4. List User URLs (Paginated)
 ```http
-GET /codes
+GET /codes?page=1
 ```
-
-Response:
-
+* **Query Parameters**:
+  * `page` (optional, default: `1`) - 20 items per page.
+* **Response (`200 OK`):**
 ```json
 {
   "codes": [
     {
-      "id": "uuid",
-      "shortCode": "abc123",
-      "targetURL": "https://example.com",
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "shortCode": "my-github",
+      "targetURL": "https://github.com",
       "clicks": 42,
-      "expiresAt": null
+      "expiresAt": "2026-12-31T23:59:59.000Z"
     }
-  ]
+  ],
+  "page": 1,
+  "limit": 20
 }
 ```
 
 ---
 
-## Update URL
-
+#### 5. Update Target URL
 ```http
 PATCH /:id
 ```
-
-Request:
-
+* **URL Parameter**: `:id` (must be a valid UUID)
+* **Request Body:**
 ```json
 {
-  "targetURL": "https://new-site.com"
+  "targetURL": "https://github.com/new-destination"
 }
 ```
-
-Response:
-
+* **Response (`200 OK`):**
 ```json
 {
-  "id": "uuid",
-  "shortCode": "abc123",
-  "targetURL": "https://new-site.com"
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "shortCode": "my-github",
+  "targetURL": "https://github.com/new-destination"
 }
 ```
+* **Errors**: `400 Bad Request` (invalid UUID format or invalid URL), `404 Not Found`.
 
 ---
 
-## Delete URL
-
+#### 6. Delete Short URL
 ```http
 DELETE /:id
 ```
-
-Response:
-
+* **URL Parameter**: `:id` (must be a valid UUID)
+* **Response (`200 OK`):**
 ```json
 {
   "deleted": true
 }
 ```
+* **Errors**: `400 Bad Request` (invalid UUID format), `404 Not Found`.
 
 ---
 
-## Analytics
+### 📊 Analytics Endpoints (Protected)
 
-### All links
-
+#### 7. Overall Analytics
 ```http
 GET /analytics
 ```
-
-Response:
-
+* **Response (`200 OK`):**
 ```json
 {
   "analytics": [
     {
-      "shortCode": "abc123",
-      "targetURL": "https://example.com",
-      "clicks": 42
+      "shortCode": "my-github",
+      "targetURL": "https://github.com",
+      "clicks": 42,
+      "expiresAt": "2026-12-31T23:59:59.000Z"
     }
   ]
 }
 ```
 
-### Single link
+---
 
+#### 8. Single Link Analytics
 ```http
-GET /analytics/:shortCode
+GET /analytics/:shortcode
 ```
-
-Response:
-
+* **Response (`200 OK`):**
 ```json
 {
   "analytics": {
-    "shortCode": "abc123",
-    "targetURL": "https://example.com",
+    "shortCode": "my-github",
+    "targetURL": "https://github.com",
     "totalClicks": 42,
-    "lastClickAt": "2025-06-01T10:30:00.000Z"
+    "lastClickAt": "2026-08-19T17:40:00.000Z"
   }
 }
 ```
 
 ---
 
-## Redirect
+### 🌍 Redirection Endpoint (Public)
 
+#### 9. Visit Short URL
 ```http
 GET /:shortCode
 ```
-
-Redirects to the original URL. Returns `410 Gone` if the link has expired.
-
----
-
-## Rate Limiting
-
-- General: 100 requests per 15 minutes per IP
-- `/shorten`: 10 requests per 15 minutes per IP
+* **Response**: `302 Found` (Redirects to original `targetURL`).
+* **Errors**:
+  * `404 Not Found` (invalid or non-existent short code)
+  * `410 Gone` (`"This link has expired"`)
 
 ---
 
-## Available Scripts
+## 🛡️ Security Features
 
-```bash
-pnpm dev        # Start development server
-pnpm db:push    # Push schema changes to PostgreSQL
-pnpm db:studio  # Open Drizzle Studio
-```
-
----
-
-## Security
-
-- Passwords are salted and hashed
-- JWT-based authentication
-- Zod request validation
-- User-owned URL management
-- Protected CRUD operations
-- Rate limiting on all routes
+- **Salted Hashing**: Each user password is independently salted using `crypto.randomBytes(256)` and hashed via HMAC-SHA256.
+- **Enumeration Defense**: Unified `401 Unauthorized` responses on login prevent account enumeration.
+- **JWT Lifespan**: Signed JWT payloads with strict 7-day expiration.
+- **UUID Sanitization**: All path parameters are validated via Zod schemas before querying the database, preventing Postgres UUID formatting exceptions (`22P02`).
+- **Route Collision Prevention**: Strict reserved slug checks protect API and frontend routing namespaces.
+- **Rate Limiting**:
+  * Global limiter: `100 requests / 15 minutes / IP`
+  * Shorten limiter: `10 requests / 15 minutes / IP`
 
 ---
 
+## 📜 Available Scripts
+
+| Command | Description |
+| :--- | :--- |
+| `pnpm dev` | Starts the server in watch mode using `node --watch index` |
+| `pnpm db:push` | Synchronizes Drizzle ORM schema with PostgreSQL |
+| `pnpm db:studio` | Launches Drizzle Studio database management interface |
