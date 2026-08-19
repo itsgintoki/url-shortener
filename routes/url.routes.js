@@ -1,8 +1,7 @@
 import express from 'express'
-import { shortenPostRequestBodySchema } from '../validations/request.validation.js';
+import { shortenPostRequestBodySchema, updateUrlSchema, uuidParamSchema } from '../validations/request.validation.js';
 import { nanoid } from 'nanoid';
 import { and, eq, desc } from 'drizzle-orm';
-import { updateUrlSchema } from '../validations/request.validation.js';
 import { db } from '../db/index.js'
 import { urlClicksTable, urlsTable } from '../models/url.model.js';
 import { ensureAuthenticated } from '../middlewares/auth.middleware.js';
@@ -21,23 +20,32 @@ router.post('/shorten', ensureAuthenticated, async function (req, res) {
     const { url, code, expiresAt } = validationResult.data;
     const shortCode = code ?? nanoid(6);
 
-    const [result] = await db
-        .insert(urlsTable)
-        .values({
-            shortCode,
-            targetURL: url,
-            userId: req.user.id,
-            expiresAt: expiresAt ? new Date(expiresAt) : null,
-        })
-        .returning({
-            id: urlsTable.id,
-            shortCode: urlsTable.shortCode,
-            targetURL: urlsTable.targetURL,
-            expiresAt: urlsTable.expiresAt,
-        });
+    try {
+        const [result] = await db
+            .insert(urlsTable)
+            .values({
+                shortCode,
+                targetURL: url,
+                userId: req.user.id,
+                expiresAt: expiresAt ? new Date(expiresAt) : null,
+            })
+            .returning({
+                id: urlsTable.id,
+                shortCode: urlsTable.shortCode,
+                targetURL: urlsTable.targetURL,
+                expiresAt: urlsTable.expiresAt,
+            });
 
-    return res.status(201).json(result);
+        return res.status(201).json(result);
+    } catch (err) {
+        // Postgres error code 23505 = unique_violation
+        if (err.code === '23505') {
+            return res.status(409).json({ error: 'This custom short code is already in use.' });
+        }
+        return res.status(500).json({ error: 'Failed to shorten URL' });
+    }
 });
+
 
 router.get('/codes', ensureAuthenticated, async function (req, res) {
     const page = parseInt(req.query.page) || 1;
@@ -62,7 +70,13 @@ router.get('/codes', ensureAuthenticated, async function (req, res) {
 });
 
 router.delete('/:id', ensureAuthenticated, async function (req, res) {
-    const id = req.params.id;
+    const paramValidation = await uuidParamSchema.safeParseAsync(req.params);
+
+    if (!paramValidation.success) {
+        return res.status(400).json({ error: 'Invalid ID parameter format' });
+    }
+
+    const { id } = paramValidation.data;
 
     const result = await db
         .delete(urlsTable)
@@ -75,18 +89,21 @@ router.delete('/:id', ensureAuthenticated, async function (req, res) {
         .returning({ id: urlsTable.id });
 
     if (result.length === 0) {
-        return res.status(404).json({
-            error: 'URL not found'
-        });
+        return res.status(404).json({ error: 'URL not found' });
     }
 
-    return res.status(200).json({
-        deleted: true
-    });
+    return res.status(200).json({ deleted: true });
 });
 
+
 router.patch('/:id', ensureAuthenticated, async function (req, res) {
-    const id = req.params.id;
+    const paramValidation = await uuidParamSchema.safeParseAsync(req.params);
+
+    if (!paramValidation.success) {
+        return res.status(400).json({ error: 'Invalid ID parameter format' });
+    }
+
+    const { id } = paramValidation.data;
 
     const validationResult =
         await updateUrlSchema.safeParseAsync(req.body);
@@ -125,7 +142,7 @@ router.patch('/:id', ensureAuthenticated, async function (req, res) {
     return res.status(200).json(result[0]);
 });
 
-router.get('/analytics', ensureAuthenticated, async function(req, res) {
+router.get('/analytics', ensureAuthenticated, async function (req, res) {
     const result = await db
         .select({
             shortCode: urlsTable.shortCode,
@@ -203,12 +220,16 @@ router.get('/:shortCode', async (req, res) => {
         return res.status(410).json({ error: 'This link has expired' });
     }
 
-    await db
-        .update(urlsTable)
-        .set({ clicks: sql`${urlsTable.clicks} + 1` })
-        .where(eq(urlsTable.shortCode, code));
-
-    await db.insert(urlClicksTable).values({ urlId: result.id });
+    // Non-blocking concurrent click logging
+    Promise.all([
+        db
+            .update(urlsTable)
+            .set({ clicks: sql`${urlsTable.clicks} + 1` })
+            .where(eq(urlsTable.shortCode, code)),
+        db.insert(urlClicksTable).values({ urlId: result.id }),
+    ]).catch((err) => {
+        console.error('Failed to record click analytics:', err);
+    });
 
     return res.redirect(result.targetURL);
 });

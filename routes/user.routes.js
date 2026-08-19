@@ -5,13 +5,13 @@ import { signupPostRequestBodySchema, loginPostRequestBodySchema } from '../vali
 import { hashPasswordWithSalt } from '../utils/hash.js';
 import { getUserByEmail } from '../services/user.services.js';
 import { createUserToken } from '../utils/token.js';
-    
+
 const router = express.Router();
 
 router.post('/signup', async (req, res) => {
 
     const validationResult =
-    await signupPostRequestBodySchema.safeParseAsync(req.body);
+        await signupPostRequestBodySchema.safeParseAsync(req.body);
 
     if (!validationResult.success) {
         return res.status(400).json({
@@ -60,12 +60,12 @@ router.post('/login', async (req, res) => {
     const user = await getUserByEmail(email);
 
     if (!user) {
-        return res.status(404).json({ error: `User doesn't exist` });
+        return res.status(401).json({ error: 'Invalid email or password' });
     }
     const { password: hashedPassword } = hashPasswordWithSalt(password, user.salt);
 
     if (user.password !== hashedPassword) {
-        return res.status(400).json({ error: 'Invalid password' });
+        return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     const token = await createUserToken({ id: user.id });
